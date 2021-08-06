@@ -17,7 +17,8 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_message_delete(self,message):
         embed = discord.Embed(title="Message delete",color=self.bot.config.EMBED_COLOR_RED)
-        embed.add_field(name="Author",value=str(message.author),inline=False)
+        embed.add_field(name="Author",value=str(message.author.mention),inline=False)
+        embed.add_field(name="Channel", value=str(message.channel.mention), inline=False)
         if len(message.content) > 1021:
             message.content = message.content[:1021]+"..."
         embed.add_field(name="Message",value=str(message.content),inline=False)
@@ -31,7 +32,8 @@ class Events(commands.Cog):
     @commands.Cog.listener()
     async def on_message_edit(self,before,after):
         embed = discord.Embed(title="Message edit",color=self.bot.config.EMBED_COLOR_GENERAL)
-        embed.add_field(name="Author",value=str(before.author),inline=False)
+        embed.add_field(name="Author",value=str(before.author.mention),inline=False)
+        embed.add_field(name="Channel", value=str(before.channel.mention), inline=False)
 
         if len(before.content) > 1021:
             before.content = before.content[:1021]+"..."
