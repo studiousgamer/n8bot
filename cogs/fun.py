@@ -6,7 +6,7 @@ from youtubesearchpython import VideosSearch
 from googleapiclient.discovery import build    
 from PyDictionary import PyDictionary
 from translate import Translator
-
+import re
 
 class Fun(commands.Cog):
     def __init__(self, bot):
@@ -224,6 +224,24 @@ class Fun(commands.Cog):
         embed.set_footer(text=f"Executed by {ctx.message.author}")
         await ctx.send(embed =embed)
     
+    @commands.command()
+    async def emojify(self, ctx, *, text):
+        emojified = ''
+        formatted = re.sub(r'[^A-Za-z ]+', "", text).lower()
+        if text == '':
+            await ctx.send('Remember to say what you want to convert!')
+        else:
+            for i in formatted:
+                if i == ' ':
+                    emojified += '     '
+                else:
+                    emojified += ':regional_indicator_{}: '.format(i)
+            if len(emojified) + 2 >= 2000:
+                await ctx.send('Your message in emojis exceeds 2000 characters!')
+            if len(emojified) <= 25:
+                await ctx.send('Your message could not be converted!')
+            else:
+                await ctx.send(emojified)
 
 def setup(bot):
     bot.add_cog(Fun(bot))

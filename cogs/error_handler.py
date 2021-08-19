@@ -42,6 +42,14 @@ class ErrorHandler(commands.Cog):
                 elif isinstance(error,commands.CommandNotFound):
                         pass
                 
+                elif isinstance(error,commands.NotOwner):
+                        missing_role_embed = discord.Embed(title='Error', colour=self.bot.config.EMBED_COLOR_RED)
+                        missing_role_embed.description="Don't be too smart \nDevs Are smarter than you"
+                        await ctx.send(embed=missing_role_embed)
+                
+                elif isinstance(error, HTTPException):
+                        pass
+                
                 else:
                         unexpected_embed = discord.Embed(title='Error', colour=self.bot.config.EMBED_COLOR_RED)
                         unexpected_embed.description="There was an unexpected error with the bot :( The devs have been notified"
