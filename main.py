@@ -10,25 +10,27 @@ import requests
 import aiohttp
 import asyncio
 from config import Config
+from databases import Database
 
 
 config = Config()
 bot = discord.Bot()
+database = Database()
 
 
-@bot.command(name='ping', guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
     await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def help(ctx):
     embed = discord.Embed(
         title="Help", description="Commands:", color=0x00ff00)
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 @commands.has_permissions(kick_members=True)
 async def kick(ctx,
                name: Option(discord.Member, "Name Of the Member"), *,
@@ -39,7 +41,7 @@ async def kick(ctx,
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 @commands.has_permissions(ban_members=True)
 async def ban(ctx,
               name: Option(discord.Member, "Name Of the Member"), *,
@@ -50,14 +52,14 @@ async def ban(ctx,
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx,
                 limit: Option(int, "Amount of messages to purge", required=False, default=2)):
     await ctx.channel.purge(limit=limit)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def advice(ctx):
     session = aiohttp.ClientSession()
     async with session.get("https://api.adviceslip.com/advice") as answer:
@@ -69,7 +71,7 @@ async def advice(ctx):
         await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def bored(ctx):
     answer = requests.get("https://www.boredapi.com/api/activity")
     answer = answer.json()
@@ -82,7 +84,7 @@ async def bored(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def joke(ctx):
     answer = requests.get(
         "https://official-joke-api.appspot.com/jokes/general/random")
@@ -94,7 +96,7 @@ async def joke(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def wikisearch(ctx, *, word):
     wiki = wikipediaapi.Wikipedia("en")
     page = wiki.page(word)
@@ -104,7 +106,7 @@ async def wikisearch(ctx, *, word):
     await ctx.send(embed=embed)
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def youtubesearch(ctx, *, word):
     embed = discord.Embed(title=f"YouTube Search For {word}")
     videosSearch = VideosSearch(word, limit=5)
@@ -131,7 +133,7 @@ async def shorten(uri):
     return data['data']['url']
 
 
-@bot.command(guild_ids=[862785948605612052, 821422877458563092])
+@bot.command(guild_ids=[862785948605612052])
 async def shortlink(ctx, link):
     try:
         shortened_link = await shorten(link)
@@ -146,5 +148,16 @@ async def shortlink(ctx, link):
     except Exception as e:
         print(e)
         await ctx.send("Invalid link")
+        
+#---------------------------------------Banking---------------------------------------#
+@bot.command(guild_ids=[862785948605612052])
+async def bank(ctx, user: discord.Member = None):
+    if user is None:
+        user = ctx.author
+    bank = database.check_account(user.id)
+    embed = discord.Embed(title=f"{user}'s Bank Account", color=discord.Color.blue())
+    embed.add_field(name="Wallet", value=f"{bank['wallet']}", inline=False)
+    embed.add_field(name="Bank", value=f"{bank['bank']}", inline=False)
+    await ctx.send(embed=embed)
 
 bot.run(config.TOKEN)
