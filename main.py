@@ -14,9 +14,18 @@ from databases import Database
 
 
 config = Config()
-bot = discord.Bot()
+bot = discord.Bot(intents= discord.Intents.all())
 database = Database()
 
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+    # print(message.author.name + ": " + message.content)
+    database.add_experience(message.author.id, 1)
+    levelup = database.level_up(message.author.id)
+    if levelup:
+        await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")#bot.send_message(message.channel, f"Congratulations {message.author.mention}! You've leveled up to level " + str(levelup) + "!")
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
@@ -156,8 +165,45 @@ async def bank(ctx, user: discord.Member = None):
         user = ctx.author
     bank = database.check_account(user.id)
     embed = discord.Embed(title=f"{user}'s Bank Account", color=discord.Color.blue())
+    embed.set_thumbnail(url=user.avatar.url)
     embed.add_field(name="Wallet", value=f"{bank['wallet']}", inline=False)
     embed.add_field(name="Bank", value=f"{bank['bank']}", inline=False)
     await ctx.send(embed=embed)
+        
+#---------------------------------------Leveling---------------------------------------#
+@bot.command(guild_ids=[862785948605612052])
+async def level(ctx, user: discord.Member = None):
+    if user is None:
+        user = ctx.author
+    info = database.get_leveling_info(user.id)
+    exp = info['experience']
+    lvl=0
+    while True:
+        if exp < ((50*(lvl**2))+(50*lvl)):
+            break
+        lvl += 1
+    xp = exp-((50*((lvl-1)**2))+(50*(lvl-1))) 
+    boxes = int((xp/(200*((1/2)*lvl)))*20)
+    rank = database.get_rank(user.id, exp)
+    embed = discord.Embed(title=f"{user}'s Leveling Info", color=discord.Color.blue())
+    embed.set_thumbnail(url=user.avatar.url)
+    embed.add_field(name="Level", value=f"{lvl}", inline=True)
+    embed.add_field(name="Experience", value=f"{exp}", inline=True)
+    embed.add_field(name="Rank", value=f"{rank}", inline=True)
+    embed.add_field(name="Progress", value=boxes*":blue_square:"+(20-boxes)*":white_large_square:", inline=False)
+    await ctx.send(embed=embed)
+
+@bot.command(guild_ids=[862785948605612052])
+async def leaderboard(ctx):
+    rankings = database.get_Top_Ten()
+    embed = discord.Embed(title="Top 10 Leveling Rankings", color=discord.Color.blue())
+    for i in rankings:
+        try:
+            print(i['_id'])
+            embed.add_field(name=f"{bot.get_user(int(i['_id'])).name}", value=f"Level: {i['level']}\n Experience: {i['experience']}", inline=False)
+        except:
+            pass
+    await ctx.send(embed=embed)
+        
 
 bot.run(config.TOKEN)
