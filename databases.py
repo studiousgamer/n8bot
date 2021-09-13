@@ -9,7 +9,7 @@ class Database:
     def __init__(self):
         config = conf.Config()
         self.cluster = MongoClient(config.DATABASE_URL)
-        self.info = self.cluster['info']
+        self.info = self.cluster['Info']
         self.economy = self.cluster['Economy']
 
     def inventory(self, user_id):
@@ -116,17 +116,35 @@ class Database:
 
 
     def level_up(self, user_id):
-        user = self.get_leveling_info(user_id)
-        experience = user['experience']
-        level = user['level']
-        # print(user)
-        experience_required = 10 * 1.5 **level
-        # print(experience_required)
-        if experience >= experience_required:
+        info = self.get_leveling_info(user_id)
+        exp = info['experience']
+        lvl=0
+        while True:
+            if exp < ((50*(lvl**2))+(50*lvl)):
+                break
+            lvl += 1
+        if info['level'] < lvl:
             self.info['leveling'].update_one(
-                {'_id': user_id}, {'$set': {'level': level+1}})
+                {'_id': user_id}, {'$set': {'level': lvl}})
             return True
         return False
+    
+    def get_Top_Ten(self):
+        users = self.info['leveling'].find().sort('experience', -1).limit(10)
+        ranks = []
+        for user in users:
+            ranks.append(user)
+        return ranks
+    
+    def get_rank(self, user_id, exp):
+        users = self.info['leveling'].find().sort('experience', -1)
+        rank = 0
+        for x in users:
+            rank+=1
+            if x['_id'] == user_id:
+                break
+        return rank
+        
 
 # def check_key(key):
 #     isKey = self.info['keys'].find_one({'Key': key})
