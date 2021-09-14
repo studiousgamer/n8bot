@@ -129,8 +129,15 @@ class Database:
             return True
         return False
     
-    def get_Top_Ten(self):
+    def get_Top_Ten_Leveling(self):
         users = self.info['leveling'].find().sort('experience', -1).limit(10)
+        ranks = []
+        for user in users:
+            ranks.append(user)
+        return ranks
+    
+    def get_Top_Ten_Richest(self):
+        users = self.economy['Currency'].find().sort('bank', -1).limit(10)
         ranks = []
         for user in users:
             ranks.append(user)
