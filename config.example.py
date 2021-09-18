@@ -23,6 +23,8 @@ class Config:
     BITTLY_ACCESS_TOKEN = ""
     """Youtube API key"""
     YOUTUBE_API_KEY = ""
+    """Tenor Key"""
+    TENOR_KEY = ""
 
     """Dev id (used for error pings and is_dev checks)"""
     DEV_ROLE_ID = 0

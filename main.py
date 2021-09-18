@@ -22,11 +22,12 @@ database = Database()
 async def on_message(message):
     if message.author == bot.user:
         return
-    # print(message.author.name + ": " + message.content)
-    database.add_experience(message.author.id, 5)
-    levelup = database.level_up(message.author.id)
-    if levelup:
-        await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")#bot.send_message(message.channel, f"Congratulations {message.author.mention}! You've leveled up to level " + str(levelup) + "!")
+    print(message.channel)
+    if 'spam' not in message.channel.name:
+        database.add_experience(message.author.id, 5)
+        levelup = database.level_up(message.author.id)
+        if levelup:
+            await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")#bot.send_message(message.channel, f"Congratulations {message.author.mention}! You've leveled up to level " + str(levelup) + "!")
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
@@ -214,28 +215,44 @@ async def hug(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to hug them")
     else:
-        await ctx.send(f"{ctx.author.mention} hugged {name.mention}! Awwww!")
+        # await ctx.send(f"{ctx.author.mention} hugged {name.mention}! Awwww!")
+        embed = discord.Embed(title=f"{ctx.author.name} hugged {name.name}! Awww!", color=discord.Color.blue())
+        gif = await database.get_Randon_GIF("hug")
+        embed.set_image(url=gif)
+        await ctx.send(embed=embed)
         
 @bot.command(guild_ids=[862785948605612052])
 async def kiss(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to kiss them")
     else:
-        await ctx.send(f"{ctx.author.mention} kissed {name.mention}! Awwww!")
+        # await ctx.send(f"{ctx.author.mention} kissed {name.mention}! Awwww!")
+        embed = discord.Embed(title=f"{ctx.author.name} Kissed {name.name}! Awww!", color=discord.Color.blue())
+        gif = await database.get_Randon_GIF("kiss")
+        embed.set_image(url=gif)
+        await ctx.send(embed=embed)
 
 @bot.command(guild_ids=[862785948605612052])
 async def slap(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None: 
         await ctx.send(f"{ctx.author.mention} You need to mention someone to slap them")       
     else:
-        await ctx.send(f"{ctx.author.mention} slapped {name.mention}! Ouch!")
+        # await ctx.send(f"{ctx.author.mention} slapped {name.mention}! Ouch!")
+        embed = discord.Embed(title=f"{ctx.author.name} Slapped {name.name}! Ouch!", color=discord.Color.blue())
+        gif = await database.get_Randon_GIF("slap")
+        embed.set_image(url=gif)
+        await ctx.send(embed=embed)
 
 @bot.command(guild_ids=[862785948605612052])
 async def pat(ctx, *, name: Option(discord.Member, "Name Of the Member")):  
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to pat them")
     else:
-        await ctx.send(f"{ctx.author.mention} patted {name.mention}! Good Job!")
+        # await ctx.send(f"{ctx.author.mention} patted {name.mention}! Good Job!")
+        embed = discord.Embed(title=f"{ctx.author.name} Patted {name.name}! Good Job!", color=discord.Color.blue())
+        gif = await database.get_Randon_GIF("pat")
+        embed.set_image(url=gif)
+        await ctx.send(embed=embed)
 
 @bot.command(guild_ids=[862785948605612052])
 async def rps(ctx, choice: Option(str, "Pick One", choices=["rock", "paper", "scissors"])):

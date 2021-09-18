@@ -2,6 +2,9 @@ import os
 from pymongo import MongoClient
 import json
 import config as conf
+import aiohttp
+import asyncio
+import random
 
 # -----------------------------------economy--------------------------------------------
 
@@ -11,6 +14,7 @@ class Database:
         self.cluster = MongoClient(config.DATABASE_URL)
         self.info = self.cluster['Info']
         self.economy = self.cluster['Economy']
+        self.tenor_key = config.TENOR_KEY
 
     def inventory(self, user_id):
         user = self.economy['Inventory'].find_one({'_id': user_id})
@@ -151,6 +155,21 @@ class Database:
             if x['_id'] == user_id:
                 break
         return rank
+    
+    async def get_Randon_GIF(self, query):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://g.tenor.com/v1/search?q={query}&key={self.tenor_key}&limit=20") as answer:
+                # print(answer.text)
+                res = await answer.json()
+                # print(res)
+                res = res['results']
+                gif = random.choice(res)['media']
+                for i in gif:
+                    try:
+                        gif = i['gif']['url']
+                        return gif
+                    except:
+                        pass
         
 
 # def check_key(key):
