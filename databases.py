@@ -2,6 +2,9 @@ import os
 from pymongo import MongoClient
 import json
 import config as conf
+import aiohttp
+import asyncio
+import random
 
 # -----------------------------------economy--------------------------------------------
 
@@ -11,6 +14,8 @@ class Database:
         self.cluster = MongoClient(config.DATABASE_URL)
         self.info = self.cluster['Info']
         self.economy = self.cluster['Economy']
+        self.tags = self.info['tags']
+        self.tenor_key = config.TENOR_KEY
 
     def inventory(self, user_id):
         user = self.economy['Inventory'].find_one({'_id': user_id})
@@ -151,11 +156,70 @@ class Database:
             if x['_id'] == user_id:
                 break
         return rank
+    
+    async def get_Randon_GIF(self, query):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://g.tenor.com/v1/search?q={query}&key={self.tenor_key}&limit=20") as answer:
+                # print(answer.text)
+                res = await answer.json()
+                # print(res)
+                res = res['results']
+                gif = random.choice(res)['media']
+                for i in gif:
+                    try:
+                        gif = i['gif']['url']
+                        return gif
+                    except:
+                        pass
+    
+    def get_Cache_tags(self):
+        return json.load(open('tagCache.json'))
+    
+    def add_Tag_in_Cache(self, data):
+        cache = json.load(open('tagCache.json'))
+        cache.append(data)
+        with open('tagCache.json', 'w') as f:
+            json.dump(cache, f, indent=4)
         
-
-# def check_key(key):
-#     isKey = self.info['keys'].find_one({'Key': key})
-#     if isKey is None:
-#         return False
-#     else:
-#         return True
+    
+    def get_Tag_by_Author_ID(self, id):
+        tags = self.tags.find({'author': id})
+        res = []
+        for i in tags:
+            res.append(i)
+        return res
+    
+    def get_Tag_by_name(self, name):
+        tags = self.tags.find({})
+        res = []
+        for i in tags:
+            if name.lower() in i['name'].lower():
+                res.append(i)
+        return res
+    
+    def tag_Exist(self, name):
+        tags = self.get_Cache_tags()
+        for i in tags:
+            if i['name'] == name:
+                return True
+        tags = self.tags.find_one({'name': name})
+        if tags is not None:
+            self.add_Tag_in_Cache(tags)
+            return True
+        return False
+        
+    def add_Tag(self, data):
+        self.tags.insert_one(data)
+        self.add_Tag_in_Cache(data)
+            
+    def get_Tag_by_ID(self, id):
+        tags = self.get_Cache_tags()
+        for i in tags:
+            if i['_id'] == id:
+                return i
+        tags = self.tags.find_one({'_id': id})
+        if tags is not None:
+            self.add_Tag_in_Cache(tags)
+            return tags
+        return None
+        
