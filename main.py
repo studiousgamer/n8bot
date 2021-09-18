@@ -12,6 +12,8 @@ import asyncio
 from config import Config
 from databases import Database
 import random
+import datetime
+import uuid
 
 
 config = Config()
@@ -22,7 +24,6 @@ database = Database()
 async def on_message(message):
     if message.author == bot.user:
         return
-    print(message.channel)
     if 'spam' not in message.channel.name:
         database.add_experience(message.author.id, 5)
         levelup = database.level_up(message.author.id)
@@ -75,10 +76,17 @@ BotCommands = {
             "mute": "Mutes a Member",
             "unmute": "Unmutes a Member"
         },
+    "Tags":
+        {
+            "add_tag": "Adds a tag",
+            "tag_search": "Searches for a tag",
+            "user_tags": "Shows you all the tags of a user",
+            "tag_by_id": "Searches for a tag by id",
+        }
 }
 
 @bot.command(guild_ids=[862785948605612052])
-async def help(ctx, category: Option(str, "Choose Category", choices=["Fun", "Economy", "Leveling", "Moderation"], required=False, default=None)):
+async def help(ctx, category: Option(str, "Choose Category", choices=["Fun", "Economy", "Leveling", "Moderation", "Tags"], required=False, default=None)):
     if category == None:
         embed = discord.Embed(title="Help", description="Here is a list of Categories", color=discord.Color.blue())
         for section in BotCommands:
@@ -124,7 +132,6 @@ async def purge(ctx,
 async def yomomma(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://yomomma-api.herokuapp.com/jokes") as answer:
-    # answer = requests.get("https://api.adviceslip.com/advice")
             answer = await answer.json()
             embed = discord.Embed(
                 title=f"Yo Momma", description=answer['joke'], color=discord.Color.blue())
@@ -135,7 +142,6 @@ async def yomomma(ctx):
 async def bored(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://www.boredapi.com/api/activity") as answer:
-    # answer = requests.get("https://www.boredapi.com/api/activity")
             answer = await answer.json()
             embed = discord.Embed(title=f"{answer['activity']}", color=discord.Color.blue())
             embed.add_field(name="Type", value=f"{answer['type']}", inline=False)
@@ -190,7 +196,6 @@ async def shorten(uri):
     endpoint = 'https://api-ssl.bitly.com/v3/shorten'
     async with aiohttp.ClientSession() as session:
         async with session.get(endpoint, params=query_params) as response:
-    # response = requests.get(endpoint, params=query_params)
             data = await response.json()
             return data['data']['url']
 
@@ -215,7 +220,6 @@ async def hug(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to hug them")
     else:
-        # await ctx.send(f"{ctx.author.mention} hugged {name.mention}! Awwww!")
         embed = discord.Embed(title=f"{ctx.author.name} hugged {name.name}! Awww!", color=discord.Color.blue())
         gif = await database.get_Randon_GIF("hug")
         embed.set_image(url=gif)
@@ -226,7 +230,6 @@ async def kiss(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to kiss them")
     else:
-        # await ctx.send(f"{ctx.author.mention} kissed {name.mention}! Awwww!")
         embed = discord.Embed(title=f"{ctx.author.name} Kissed {name.name}! Awww!", color=discord.Color.blue())
         gif = await database.get_Randon_GIF("kiss")
         embed.set_image(url=gif)
@@ -237,7 +240,6 @@ async def slap(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None: 
         await ctx.send(f"{ctx.author.mention} You need to mention someone to slap them")       
     else:
-        # await ctx.send(f"{ctx.author.mention} slapped {name.mention}! Ouch!")
         embed = discord.Embed(title=f"{ctx.author.name} Slapped {name.name}! Ouch!", color=discord.Color.blue())
         gif = await database.get_Randon_GIF("slap")
         embed.set_image(url=gif)
@@ -248,7 +250,6 @@ async def pat(ctx, *, name: Option(discord.Member, "Name Of the Member")):
     if name is None:
         await ctx.send(f"{ctx.author.mention} You need to mention someone to pat them")
     else:
-        # await ctx.send(f"{ctx.author.mention} patted {name.mention}! Good Job!")
         embed = discord.Embed(title=f"{ctx.author.name} Patted {name.name}! Good Job!", color=discord.Color.blue())
         gif = await database.get_Randon_GIF("pat")
         embed.set_image(url=gif)
@@ -280,7 +281,6 @@ async def rps(ctx, choice: Option(str, "Pick One", choices=["rock", "paper", "sc
 async def meme(ctx):
     async with aiohttp.ClientSession() as session:
         async with session.get("https://meme-api.herokuapp.com/gimme") as meme:
-    # meme = requests.get("https://meme-api.herokuapp.com/gimme").json()
             meme = await meme.json()
             embed = discord.Embed(title=meme['title'], color=discord.Color.blue(), url=meme['postLink'])
             embed.set_image(url=meme['url'])
@@ -407,5 +407,62 @@ async def leaderboard(ctx):
             pass
     await ctx.send(embed=embed)
     
+#---------------------------------------------tag-------------------------------------------
+@bot.command(guild_ids=[862785948605612052])
+async def add_tag(ctx, name:str,*, content: str):
+    if content == "" or name == "":
+        await ctx.send("You need to enter a tag/content")
+    elif len(name) > 20:
+        await ctx.send("Your tag is too long")
+    elif len(content) > 500:
+        await ctx.send("Your content is too long")
+    else:
+        time = datetime.datetime.now()
+        data = {
+            "_id": str(uuid.uuid4()),
+            "name": name,
+            "content": content,
+            "author": ctx.author.id,
+            "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "updated": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        if database.tag_Exist(name):
+            await ctx.send(f"Tag {name} already exists")
+        else:
+            database.add_Tag(data)
+            await ctx.send(f"Your tag has been created")
+            
+@bot.command(guild_ids=[862785948605612052])
+async def tag_search(ctx, name:str):
+    tags = database.get_Tag_by_name(name)
+    if tags is not None:
+        embed = discord.Embed(title=f"Tag: {name}", color=discord.Color.blue())
+        for i in tags:
+            embed.add_field(name=f"{i['name']}", value=f"**ID:** `{i['_id']}` \n**Content:** {i['content']}", inline=False)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"Tag {name} does not exist")
+        
+@bot.command(guild_ids=[862785948605612052])
+async def user_tags(ctx, user:discord.Member):
+    tags = database.get_Tag_by_Author_ID(user.id)
+    embed = discord.Embed(title=f"{user.name}'s Tags", color=discord.Color.blue())
+    for i in tags:
+        embed.add_field(name=f"{i['name']}", value=f"**ID:** `{i['_id']}` \n**Content:** {i['content']}", inline=False)
+    await ctx.send(embed=embed)
+    
+@bot.command(guild_ids=[862785948605612052])
+async def tag_by_id(ctx, id:str):
+    tag = database.get_Tag_by_ID(id)
+    if tag is not None:
+        embed = discord.Embed(title=f"{tag['name']}", color=discord.Color.blue())
+        embed.add_field(name="ID", value=f"{tag['_id']}", inline=False)
+        embed.add_field(name="Author", value=f"{bot.get_user(int(tag['author'])).name}", inline=False)
+        embed.add_field(name="Content", value=f"{tag['content']}", inline=False)
+        embed.add_field(name="Created On", value=f"{tag['time']}", inline=False)
+        embed.add_field(name="Updated On", value=f"{tag['updated']}", inline=False)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"Tag {id} does not exist")
 
 bot.run(config.TOKEN)
