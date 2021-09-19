@@ -125,7 +125,45 @@ async def ban(ctx,
 async def purge(ctx,
                 limit: Option(int, "Amount of messages to purge", required=False, default=2)):
     await ctx.channel.purge(limit=limit)
-
+    
+@bot.command(guild_ids=[862785948605612052])
+@commands.has_permissions(manage_roles=True)
+async def mute(ctx,
+               user: Option(discord.Member, "Name Of the Member"),
+               reason: Option(str, "Reason for Mute", required=False, default="No Reason") ):
+    guild = ctx.guild
+    mutedRole = discord.utils.get(guild.roles, name="Muted")
+    if not mutedRole:
+        mutedRole = await guild.create_role(name="Muted")
+        for channel in guild.channels:
+            await channel.set_permissions(mutedRole, speak=False, send_messages=False, read_message_history=True, read_messages=False)
+    if mutedRole in user.roles:
+        await ctx.send(f"{user.name} is already muted :skull:")
+    else:
+        try:
+            await user.send(f"You have been muted for {reason} by {ctx.author.name} :skull:")
+        except:
+            pass
+        embed = discord.Embed(title="muted", description=f"{user.mention} was muted ", colour=discord.Colour.blue())
+        embed.add_field(name="reason:", value=reason, inline=False)
+        await user.add_roles(mutedRole, reason=reason)
+        await ctx.send(embed=embed)
+    
+@bot.command(guild_ids=[862785948605612052])
+@commands.has_permissions(manage_roles=True)
+async def unmute(ctx,
+                 user: Option(discord.Member, "Name Of the Member")):
+    mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
+    if mutedRole in user.roles:
+        await user.remove_roles(mutedRole)
+        try:
+            await user.send(f" you have been unmuted in: - {ctx.guild.name}")
+        except:
+            pass
+        embed = discord.Embed(title="unmute", description=f" unmuted-{user.mention}",colour=discord.Colour.blue())
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send(f"{user.name} is not muted :skull:")
 
 #--------------------------------------------Fun----------------------------------------------------
 @bot.command(guild_ids=[862785948605612052])
