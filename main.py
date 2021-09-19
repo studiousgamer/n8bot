@@ -24,7 +24,7 @@ database = Database()
 async def on_message(message):
     if message.author == bot.user:
         return
-    if 'spam' not in message.channel.name:
+    elif 'spam' not in message.channel.name:
         database.add_experience(message.author.id, 5)
         levelup = database.level_up(message.author.id)
         if levelup:
@@ -231,8 +231,8 @@ async def kiss(ctx, *, name: Option(discord.Member, "Name Of the Member")):
         await ctx.send(f"{ctx.author.mention} You need to mention someone to kiss them")
     else:
         embed = discord.Embed(title=f"{ctx.author.name} Kissed {name.name}! Awww!", color=discord.Color.blue())
-        gif = await database.get_Randon_GIF("kiss")
-        embed.set_image(url=gif)
+        # gif = await database.get_Randon_GIF("kiss")
+        # embed.set_image(url=gif)
         await ctx.send(embed=embed)
 
 @bot.command(guild_ids=[862785948605612052])
@@ -295,6 +295,15 @@ async def dog(ctx):
             embed = discord.Embed(title="Dog", color=discord.Color.blue(), url=dog['message'])
             embed.set_image(url=dog['message'])
             embed.set_footer(text=f"Posted By {dog['status']}")
+            await ctx.send(embed=embed)
+            
+@bot.command(guild_ids=[862785948605612052])
+async def cat(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.thecatapi.com/v1/images/search") as cat:
+            cat = await cat.json()
+            embed = discord.Embed(title="Cat", color=discord.Color.blue(), url=cat[0]['url'])
+            embed.set_image(url=cat[0]['url'])
             await ctx.send(embed=embed)
 
 @bot.command(guild_ids=[862785948605612052])
