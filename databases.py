@@ -4,6 +4,8 @@ import json
 import config as conf
 import aiohttp
 import asyncio
+import datetime
+from uuid import uuid4
 import random
 
 # -----------------------------------economy--------------------------------------------
@@ -12,26 +14,34 @@ class Database:
     def __init__(self):
         config = conf.Config()
         self.cluster = MongoClient(config.DATABASE_URL)
+        self.tenor_key = config.TENOR_KEY
+        self.tagCache = []
+        
+        
         self.info = self.cluster['Info']
         self.economy = self.cluster['Economy']
+        
+        
+        self.inventoryDB = self.economy['Inventory']
+        self.currency = self.economy['Currency']
+        self.leveling = self.info['leveling']
+        self.logs = self.info['logs']
         self.tags = self.info['tags']
-        self.tenor_key = config.TENOR_KEY
 
     def inventory(self, user_id):
-        user = self.economy['Inventory'].find_one({'_id': user_id})
+        user = self.inventoryDB.find_one({'_id': user_id})
         if user is None:
             user = {'_id': user_id, 'items': {}}
-            self.economy['Inventory'].insert_one(user)
+            self.inventoryDB.insert_one(user)
         else:
             pass
         return user
 
     def check_account(self, user_id):
-        currency = self.economy['Currency']
-        user = currency.find_one({'_id': user_id})
+        user = self.currency.find_one({'_id': user_id})
         if user is None:
             user = {'_id': user_id, 'wallet': 0, 'bank': 0}
-            currency.insert_one(user)
+            self.currency.insert_one(user)
         else:
             pass
         return user
@@ -40,22 +50,22 @@ class Database:
     def add_in_wallet(self, user_id, amount):
         user = self.check_account(user_id)
         money = int(user['wallet'])
-        self.economy['Currency'].update_one(
+        self.currency.update_one(
             {'_id': user_id}, {'$set': {'wallet': money+int(amount)}})
 
 
     def add_in_bank(self, user_id, amount):
         user = self.check_account(user_id)
         money = int(user['bank'])
-        self.economy['Currency'].update_one(
+        self.currency.update_one(
             {'_id': user_id}, {'$set': {'bank': money+int(amount)}})
 
 
     def get_item_from_inventory (self, user_id):
-        user = self.economy['Inventory'].find_one({'_id': user_id})
+        user = self.inventoryDB.find_one({'_id': user_id})
         if user is None:
             user = {'_id': user_id, 'items': {}}
-            self.economy['Inventory'].insert_one(user)
+            self.inventoryDB.insert_one(user)
         else:
             pass
         return user
@@ -70,21 +80,21 @@ class Database:
             amounts = 0
         amounts += int(amount)
         items[item] = int(amounts)
-        self.economy['Inventory'].update_one(
+        self.inventoryDB.update_one(
             {'_id': user_id}, {'$set': {'items': items}})
 
 
     def remove_from_wallet(self, user_id, amount):
         user = self.check_account(user_id)
         money = int(user['wallet'])
-        self.economy['Currency'].update_one(
+        self.currency.update_one(
             {'_id': user_id}, {'$set': {'wallet': money-int(amount)}})
 
 
     def remove_from_bank(self, user_id, amount):
         user = self.check_account(user_id)
         money = int(user['bank'])
-        self.economy['Currency'].update_one(
+        self.currency.update_one(
             {'_id': user_id}, {'$set': {'bank': money-int(amount)}})
 
 
@@ -97,17 +107,17 @@ class Database:
             amount = 0
         amount -= int(amount)
         items[item] = int(amount)
-        self.economy['Inventory'].update_one(
+        self.inventoryDB.update_one(
             {'_id': user_id}, {'$set': {'items': items}})
 
     # ---------------------------------------------------------------------Leveling-------------------------------------------------------------------------------
 
 
     def get_leveling_info(self, user_id):
-        user = self.info['leveling'].find_one({'_id': user_id})
+        user = self.leveling.find_one({'_id': user_id})
         if user is None:
             user = {'_id': user_id, 'experience': 0, 'level': 1}
-            self.info['leveling'].insert_one(user)
+            self.leveling.insert_one(user)
         else:
             pass
         return user
@@ -117,7 +127,7 @@ class Database:
         user = self.get_leveling_info(user_id)
         experience = user['experience']
         experience += int(amount)
-        self.info['leveling'].update_one({'_id': user_id}, {'$set': {'experience': experience}})
+        self.leveling.update_one({'_id': user_id}, {'$set': {'experience': experience}})
 
 
     def level_up(self, user_id):
@@ -129,33 +139,35 @@ class Database:
                 break
             lvl += 1
         if info['level'] < lvl:
-            self.info['leveling'].update_one(
+            self.leveling.update_one(
                 {'_id': user_id}, {'$set': {'level': lvl}})
             return True
         return False
     
     def get_Top_Ten_Leveling(self):
-        users = self.info['leveling'].find().sort('experience', -1).limit(10)
+        users = self.leveling.find().sort('experience', -1).limit(10)
         ranks = []
         for user in users:
             ranks.append(user)
         return ranks
     
     def get_Top_Ten_Richest(self):
-        users = self.economy['Currency'].find().sort('bank', -1).limit(10)
+        users = self.currency.find().sort('bank', -1).limit(10)
         ranks = []
         for user in users:
             ranks.append(user)
         return ranks
     
     def get_rank(self, user_id, exp):
-        users = self.info['leveling'].find().sort('experience', -1)
+        users = self.leveling.find().sort('experience', -1)
         rank = 0
         for x in users:
             rank+=1
             if x['_id'] == user_id:
                 break
         return rank
+    
+#-----------------------------------------------------Misc-----------------------------------------------------------------------------------
     
     async def get_Randon_GIF(self, query):
         async with aiohttp.ClientSession() as session:
@@ -171,15 +183,14 @@ class Database:
                         return gif
                     except:
                         pass
-    
+
+#-----------------------------------------------------Tagging-----------------------------------------------------------------------------------
+
     def get_Cache_tags(self):
-        return json.load(open('tagCache.json'))
+        return self.tagCache
     
     def add_Tag_in_Cache(self, data):
-        cache = json.load(open('tagCache.json'))
-        cache.append(data)
-        with open('tagCache.json', 'w') as f:
-            json.dump(cache, f, indent=4)
+        self.tagCache.append(data)
         
     
     def get_Tag_by_Author_ID(self, id):
@@ -222,4 +233,21 @@ class Database:
             self.add_Tag_in_Cache(tags)
             return tags
         return None
+
+#-----------------------------------------------------Logging-----------------------------------------------------------------------------------
+    def log(self, user, action):
+        log = {
+            "ID": str(uuid4()),
+            "action": action,
+            "by": user,
+            "time": datetime.datetime.now().strftime("%d %B %Y, %I:%M:%S %p")
+            
+        }
+        self.logs.insert_one(log)
         
+    def get_Logs(self):
+        logs = []
+        log = self.logs.find({})
+        for i in log:
+            logs.append(i)
+        return logs

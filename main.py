@@ -28,7 +28,7 @@ async def on_message(message):
         database.add_experience(message.author.id, 5)
         levelup = database.level_up(message.author.id)
         if levelup:
-            await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")#bot.send_message(message.channel, f"Congratulations {message.author.mention}! You've leveled up to level " + str(levelup) + "!")
+            await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
@@ -46,7 +46,7 @@ BotCommands = {
             "pat <user>": "Pats a user",
             "advice (Not Working)": "Gives a Random Advice",
             "bored": "Suggests An Activity to do",
-            "joke (Server Under maintenance)": "Sends a Random Joke",
+            "joke (Under maintenance)": "Sends a Random Joke",
             "wikisearch <query>": "Searches your query on wikipedia and gives you the result",
             "youtubesearch <query>": "Searches your query on youtube and gives you the result",
             "shortlink": "Shortens a link",
@@ -74,7 +74,8 @@ BotCommands = {
             "ban": "Bans A Member",
             "purge <amt>": "Deletes amt amount of messages",        
             "mute": "Mutes a Member",
-            "unmute": "Unmutes a Member"
+            "unmute": "Unmutes a Member",
+            "Logs": "Shows you the logs of the server"
         },
     "Tags":
         {
@@ -103,9 +104,10 @@ async def help(ctx, category: Option(str, "Choose Category", choices=["Fun", "Ec
 @bot.command(guild_ids=[862785948605612052])
 @commands.has_permissions(kick_members=True)
 async def kick(ctx,
-               name: Option(discord.Member, "Name Of the Member"), *,
+               name: Option(discord.Member, "Name Of the Member"),
                reason: Option(str, "Reason for kick", required=False, default="No Reason Provided")):
     await name.kick(reason=reason)
+    database.log(ctx.author.id, f"Kicked user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Kicked", description=f"{name.mention} Kicked for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -113,9 +115,10 @@ async def kick(ctx,
 @bot.command(guild_ids=[862785948605612052])
 @commands.has_permissions(ban_members=True)
 async def ban(ctx,
-              name: Option(discord.Member, "Name Of the Member"), *,
+              name: Option(discord.Member, "Name Of the Member"),
               reason: Option(str, "Reason for Ban", required=False, default="No Reason Provided")):
     await name.ban(reason=reason)
+    database.log(ctx.author.id, f"Banned user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Banned", description=f"{name.mention} Banned for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -124,6 +127,7 @@ async def ban(ctx,
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx,
                 limit: Option(int, "Amount of messages to purge", required=False, default=2)):
+    database.log(ctx.author.id, f"Purged {limit} messages in channel {ctx.message.channel.name}")  
     await ctx.channel.purge(limit=limit)
     
 @bot.command(guild_ids=[862785948605612052])
@@ -144,6 +148,7 @@ async def mute(ctx,
             await user.send(f"You have been muted for {reason} by {ctx.author.name} :skull:")
         except:
             pass
+        database.log(ctx.author.id, f"Muted user {user.name} for reason {reason}")  
         embed = discord.Embed(title="muted", description=f"{user.mention} was muted ", colour=discord.Colour.blue())
         embed.add_field(name="reason:", value=reason, inline=False)
         await user.add_roles(mutedRole, reason=reason)
@@ -160,6 +165,7 @@ async def unmute(ctx,
             await user.send(f" you have been unmuted in: - {ctx.guild.name}")
         except:
             pass
+        database.log(ctx.author.id, f"Unmuted user {user.name}")        
         embed = discord.Embed(title="unmute", description=f" unmuted-{user.mention}",colour=discord.Colour.blue())
         await ctx.send(embed=embed)
     else:
@@ -477,6 +483,7 @@ async def add_tag(ctx, name:str,*, content: str):
             await ctx.send(f"Tag {name} already exists")
         else:
             database.add_Tag(data)
+            database.log(ctx.author.id, f"Added tag {name}")
             await ctx.send(f"Your tag has been created")
             
 @bot.command(guild_ids=[862785948605612052])
@@ -511,5 +518,15 @@ async def tag_by_id(ctx, id:str):
         await ctx.send(embed=embed)
     else:
         await ctx.send(f"Tag {id} does not exist")
+        
+@bot.command(guild_ids=[862785948605612052])
+async def logs(ctx):
+    logs = database.get_Logs()
+    embed = discord.Embed(title="Logs", color=discord.Color.blue())
+    num = 1
+    for i in logs:
+        embed.add_field(name=f"{num}. {i['action']}", value=f"By: `{bot.get_user(int(i['by'])).name}` \nOn: `{i['time']}`", inline=False)
+        num += 1
+    await ctx.send(embed=embed)
 
 bot.run(config.TOKEN)
