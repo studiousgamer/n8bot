@@ -21,6 +21,10 @@ bot = discord.Bot(intents= discord.Intents.all())
 database = Database()
 
 @bot.event
+async def on_ready():
+    database.update_reaction_roles()
+
+@bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
@@ -29,6 +33,32 @@ async def on_message(message):
         levelup = database.level_up(message.author.id)
         if levelup:
             await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")
+            
+
+@bot.event
+async def on_raw_reaction_add(payload):
+
+    if payload.member.bot:
+        pass
+
+    else:
+        data = database.get_reaction_roles()
+        for x in data:
+            if x['emoji'] == payload.emoji.name:
+                role = discord.utils.get(bot.get_guild(
+                    payload.guild_id).roles, id=x['role_id'])
+
+                await payload.member.add_roles(role)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    data = database.get_reaction_roles()
+    for x in data:
+        if x['emoji'] == payload.emoji.name:
+            role = discord.utils.get(bot.get_guild(
+                payload.guild_id).roles, id=x['role_id'])
+            await bot.get_guild(payload.guild_id).get_member(payload.user_id).remove_roles(role)
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
@@ -528,5 +558,26 @@ async def logs(ctx):
         embed.add_field(name=f"{num}. {i['action']}", value=f"By: `{bot.get_user(int(i['by'])).name}` \nOn: `{i['time']}`", inline=False)
         num += 1
     await ctx.send(embed=embed)
+    
+@bot.command(guild_ids=[862785948605612052])
+@commands.has_permissions(manage_roles=True)
+async def reactionrole(ctx, role: discord.Role, emoji, messageid):
+    data = {"role_name": role.name, "role_id": role.id, "emoji": emoji, "message": int(messageid)} 
+    database.add_reaction_role(data)
+    msg = await ctx.channel.fetch_message(int(messageid))
+    await msg.add_reaction(emoji)
+
+@bot.command(guild_ids=[862785948605612052])
+@commands.has_permissions(manage_roles=True)
+async def createembed(ctx, title, content):
+    content = content.split('/n')
+    print(content)
+    finalcontent = ""
+    for i in content:
+        finalcontent += f"{i}\n"
+    print(finalcontent)
+    embed = discord.Embed(title=title, description=finalcontent, color=discord.Color.blue())
+    await ctx.channel.send(embed=embed)
+
 
 bot.run(config.TOKEN)
