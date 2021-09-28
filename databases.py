@@ -16,6 +16,7 @@ class Database:
         self.cluster = MongoClient(config.DATABASE_URL)
         self.tenor_key = config.TENOR_KEY
         self.tagCache = []
+        self.reactionRoles = []
         
         
         self.info = self.cluster['Info']
@@ -27,6 +28,7 @@ class Database:
         self.leveling = self.info['leveling']
         self.logs = self.info['logs']
         self.tags = self.info['tags']
+        self.roles = self.info['roles']
 
     def inventory(self, user_id):
         user = self.inventoryDB.find_one({'_id': user_id})
@@ -251,3 +253,21 @@ class Database:
         for i in log:
             logs.append(i)
         return logs
+    
+    
+    def update_reaction_roles(self):
+        all_roles = self.roles.find({})
+        roles = []
+        for i in all_roles:
+            roles.append(i)
+        self.reactionRoles = roles
+    
+    def get_reaction_roles(self):
+        print(self.reactionRoles)
+        return self.reactionRoles
+    
+    def add_reaction_role(self, data):
+        self.roles.insert_one(data)
+        self.update_reaction_roles()
+        roles = self.get_reaction_roles()
+        self.reactionRoles = roles
