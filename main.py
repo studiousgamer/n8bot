@@ -61,14 +61,14 @@ async def on_raw_reaction_remove(payload):
 async def on_guild_channel_delete(channel):
     embed = discord.Embed(title="Channel Deleted", description=f"{channel.name} has been deleted.", color=0xFF0000)
     embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
-    database.log(f"{channel.name} has been created")
+    database.log(f"{channel.name} channel has been created")
     await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
     
 @bot.event
 async def on_guild_channel_create(channel):
     embed = discord.Embed(title="New Channel Created!", description=f"{channel.mention} has been created!", color=0x00ff00)
     embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
-    database.log(f"{channel.name} has been created")
+    database.log(f"{channel.name} channel has been created")
     await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
     
 @bot.event
@@ -78,22 +78,24 @@ async def on_guild_channel_update(before, after):
     if not before.name == after.name:
         embed.add_field(name="Before (name)", value=before.name)
         embed.add_field(name="After (name)", value=after.name)
-        database.log(f"{after.name} has been updated")    
+        database.log(f"{after.name} channel has been updated")    
         await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
     if not before.topic == after.topic:
         embed.add_field(name="Before (topic)", value=before.topic)
         embed.add_field(name="After (topic)", value=after.topic) 
-        database.log(f"{after.name} has been updated")    
+        database.log(f"{after.name} channel has been updated")    
         await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
 @bot.event
 async def on_guild_role_create(role):
     embed = discord.Embed(title="New Role Created!", description=f"{role.mention} has been created!", color=0x00ff00)
+    database.log(f"{role.name} role has been created")
     await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
     
 @bot.event
 async def on_guild_role_delete(role):
     embed = discord.Embed(title="Role Deleted", description=f"{role.name} has been deleted.", color=0xFF0000)
+    database.log(f"{role.name} role has been created")
     await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
     
 @bot.event
@@ -102,7 +104,22 @@ async def on_guild_role_update(before, after):
         embed = discord.Embed(title="Role Update", description=f"{after.mention}", color=0x00ff00)
         embed.add_field(name="Before (name)", value=before.name)
         embed.add_field(name="After (name)", value=after.name)
+        database.log(f"{after.name} role has been updated")    
         await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+        
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if before.channel == None and after.channel != None:
+        embed = discord.Embed(title="Member Joined Voice Channel", description=f"{member.mention} has joined {after.channel.mention}", color=0x00ff00)
+        await after.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif before.channel != None and after.channel == None:
+        embed = discord.Embed(title="Member Left Voice Channel", description=f"{member.mention} has left {before.channel.mention}", color=0xFF0000)
+        await before.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif before.channel != None and after.channel != None:
+        embed = discord.Embed(title="Member Moved Voice Channel", description=f"{member.mention} has moved from {before.channel.mention} to {after.channel.mention}", color=0x00ff00)
+        await after.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
