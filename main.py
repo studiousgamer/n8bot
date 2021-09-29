@@ -14,6 +14,7 @@ from databases import Database
 import random
 import datetime
 import uuid
+import traceback
 
 
 config = Config()
@@ -176,10 +177,45 @@ async def on_member_update(before, after):
         embed.add_field(name="After", value=after_roles)
         await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
-@bot.command(name='ping', guild_ids=[862785948605612052])
-async def global_command(ctx):
-    await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
+async def on_command_error(ctx, error):
+    error = getattr(error, 'original', error)
+    if ctx.command is not None:
+        if ctx.command.has_error_handler():
+                return
+
+    if isinstance(error,commands.MissingRequiredArgument):
+            missing_argument_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_argument_embed.description="Missing arguments"
+            await ctx.send(embed = missing_argument_embed)
+
+    elif isinstance(error,commands.MissingPermissions):
+            missing_permissions_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_permissions_embed.description="You do not have permission to use that command"
+            await ctx.send(embed=missing_permissions_embed)
+
+    elif isinstance(error,commands.NoPrivateMessage):
+            no_dm_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            no_dm_embed.description="Enter a proper argument"
+            await ctx.send(embed=no_dm_embed)
+
+    elif isinstance(error,commands.BadArgument):
+            bad_argument_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            bad_argument_embed.description="Enter a proper argument"
+            await ctx.send(embed=bad_argument_embed)
+
     
+    elif isinstance(error,commands.MissingRole):
+            missing_role_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_role_embed.description="You do not have permission to use that command"
+            await ctx.send(embed=missing_role_embed)
+
+    elif isinstance(error,commands.CommandNotFound):
+            pass
+    
+    elif isinstance(error,commands.NotOwner):
+            missing_role_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_role_embed.description="Don't be too smart \nDevs Are smarter than you"
+            await ctx.send(embed=missing_role_embed)
 
 BotCommands = {
     "Fun": 
@@ -232,6 +268,10 @@ BotCommands = {
             "tag_by_id": "Searches for a tag by id",
         }
 }
+
+@bot.command(name='ping', guild_ids=[862785948605612052])
+async def ping(ctx):
+    await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
 
 @bot.command(guild_ids=[862785948605612052])
 async def help(ctx, category: Option(str, "Choose Category", choices=["Fun", "Economy", "Leveling", "Moderation", "Tags"], required=False, default=None)):
