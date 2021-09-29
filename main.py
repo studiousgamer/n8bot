@@ -139,6 +139,42 @@ async def on_message_edit(before, after):
     embed.add_field(name="Before", value=str(before.content))
     embed.add_field(name="After", value=str(after.content))
     await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_member_join(member):
+    channel = bot.get_channel(config.WELCOME_CHANNEL)
+    embed = discord.Embed(title=f"Welcome to the server {member}", description="Hope you enjoy your stay!", color=config.EMBED_COLOR_GENERAL)
+    embed.set_thumbnail(url=member.avatar_url)
+    database.log(f"{member.name} has joined the server")
+    message = await channel.send(embed=embed)
+    await message.add_reaction("👋")
+    embed = discord.Embed(title="Member Joined", description=f"{member.mention} has joined the server", color=0x00ff00)
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_member_remove(member):
+    embed = discord.Embed(title="Member Left", description=f"{member.mention} has left the server", color=0xFF0000)
+    database.log(f"{member.name} has left the server")
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_member_update(before, after):
+    if before.nick != after.nick:
+        embed = discord.Embed(title="Nickname Changed", description=f"{after.mention}'s nickname has been updated", color=0x00ff00)
+        embed.add_field(name="Before", value=before.nick)
+        embed.add_field(name="After", value=after.nick)
+        await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif not before.roles == after.roles:
+        embed = discord.Embed(title="Role Changed", description=f"{after.mention}'s roles has been updated", color=0x00ff00)
+        before_roles = ""
+        for i in before.roles:
+            before_roles += f"{i.mention} "
+        after_roles = ""
+        for i in after.roles:
+            after_roles += f"{i.mention} "
+        embed.add_field(name="Before", value=before_roles)
+        embed.add_field(name="After", value=after_roles)
+        await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
