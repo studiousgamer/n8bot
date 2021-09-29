@@ -20,10 +20,11 @@ config = Config()
 bot = discord.Bot(intents= discord.Intents.all())
 database = Database()
 
+#-----------------------------------------------Events------------------------------------------------------
 @bot.event
 async def on_ready():
     database.update_reaction_roles()
-
+    
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -34,13 +35,10 @@ async def on_message(message):
         if levelup:
             await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")
             
-
 @bot.event
 async def on_raw_reaction_add(payload):
-
     if payload.member.bot:
         pass
-
     else:
         data = database.get_reaction_roles()
         for x in data:
@@ -49,7 +47,6 @@ async def on_raw_reaction_add(payload):
                     payload.guild_id).roles, id=x['role_id'])
 
                 await payload.member.add_roles(role)
-
 
 @bot.event
 async def on_raw_reaction_remove(payload):
@@ -60,9 +57,57 @@ async def on_raw_reaction_remove(payload):
                 payload.guild_id).roles, id=x['role_id'])
             await bot.get_guild(payload.guild_id).get_member(payload.user_id).remove_roles(role)
 
+@bot.event
+async def on_guild_channel_delete(channel):
+    embed = discord.Embed(title="Channel Deleted", description=f"{channel.name} has been deleted.", color=0xFF0000)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    database.log(f"{channel.name} has been created")
+    await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_channel_create(channel):
+    embed = discord.Embed(title="New Channel Created!", description=f"{channel.mention} has been created!", color=0x00ff00)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    database.log(f"{channel.name} has been created")
+    await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_channel_update(before, after):
+    embed = discord.Embed(title="Channel Update",description=f"{after.mention}", color=0x00ff00)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")   
+    if not before.name == after.name:
+        embed.add_field(name="Before (name)", value=before.name)
+        embed.add_field(name="After (name)", value=after.name)
+        database.log(f"{after.name} has been updated")    
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    if not before.topic == after.topic:
+        embed.add_field(name="Before (topic)", value=before.topic)
+        embed.add_field(name="After (topic)", value=after.topic) 
+        database.log(f"{after.name} has been updated")    
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_guild_role_create(role):
+    embed = discord.Embed(title="New Role Created!", description=f"{role.mention} has been created!", color=0x00ff00)
+    await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_role_delete(role):
+    embed = discord.Embed(title="Role Deleted", description=f"{role.name} has been deleted.", color=0xFF0000)
+    await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_role_update(before, after):
+    if not before.name == after.name:
+        embed = discord.Embed(title="Role Update", description=f"{after.mention}", color=0x00ff00)
+        embed.add_field(name="Before (name)", value=before.name)
+        embed.add_field(name="After (name)", value=after.name)
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
     await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
+    
 
 BotCommands = {
     "Fun": 
@@ -137,7 +182,7 @@ async def kick(ctx,
                name: Option(discord.Member, "Name Of the Member"),
                reason: Option(str, "Reason for kick", required=False, default="No Reason Provided")):
     await name.kick(reason=reason)
-    database.log(ctx.author.id, f"Kicked user {name.name} for reason {reason}")  
+    database.log(f"Kicked user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Kicked", description=f"{name.mention} Kicked for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -148,7 +193,7 @@ async def ban(ctx,
               name: Option(discord.Member, "Name Of the Member"),
               reason: Option(str, "Reason for Ban", required=False, default="No Reason Provided")):
     await name.ban(reason=reason)
-    database.log(ctx.author.id, f"Banned user {name.name} for reason {reason}")  
+    database.log(f"Banned user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Banned", description=f"{name.mention} Banned for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -157,7 +202,7 @@ async def ban(ctx,
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx,
                 limit: Option(int, "Amount of messages to purge", required=False, default=2)):
-    database.log(ctx.author.id, f"Purged {limit} messages in channel {ctx.message.channel.name}")  
+    database.log(f"Purged {limit} messages in channel {ctx.message.channel.name}")  
     await ctx.channel.purge(limit=limit)
     
 @bot.command(guild_ids=[862785948605612052])
@@ -178,7 +223,7 @@ async def mute(ctx,
             await user.send(f"You have been muted for {reason} by {ctx.author.name} :skull:")
         except:
             pass
-        database.log(ctx.author.id, f"Muted user {user.name} for reason {reason}")  
+        database.log(f"Muted user {user.name} for reason {reason}")  
         embed = discord.Embed(title="muted", description=f"{user.mention} was muted ", colour=discord.Colour.blue())
         embed.add_field(name="reason:", value=reason, inline=False)
         await user.add_roles(mutedRole, reason=reason)
@@ -195,7 +240,7 @@ async def unmute(ctx,
             await user.send(f" you have been unmuted in: - {ctx.guild.name}")
         except:
             pass
-        database.log(ctx.author.id, f"Unmuted user {user.name}")        
+        database.log(f"Unmuted user {user.name}")        
         embed = discord.Embed(title="unmute", description=f" unmuted-{user.mention}",colour=discord.Colour.blue())
         await ctx.send(embed=embed)
     else:
@@ -513,7 +558,7 @@ async def add_tag(ctx, name:str,*, content: str):
             await ctx.send(f"Tag {name} already exists")
         else:
             database.add_Tag(data)
-            database.log(ctx.author.id, f"Added tag {name}")
+            database.log(f"Added tag {name}")
             await ctx.send(f"Your tag has been created")
             
 @bot.command(guild_ids=[862785948605612052])
@@ -555,7 +600,7 @@ async def logs(ctx):
     embed = discord.Embed(title="Logs", color=discord.Color.blue())
     num = 1
     for i in logs:
-        embed.add_field(name=f"{num}. {i['action']}", value=f"By: `{bot.get_user(int(i['by'])).name}` \nOn: `{i['time']}`", inline=False)
+        embed.add_field(name=f"{num}. {i['action']}", value=f"On: `{i['time']}`", inline=False)
         num += 1
     await ctx.send(embed=embed)
     
