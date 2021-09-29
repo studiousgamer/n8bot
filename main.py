@@ -14,16 +14,18 @@ from databases import Database
 import random
 import datetime
 import uuid
+import traceback
 
 
 config = Config()
 bot = discord.Bot(intents= discord.Intents.all())
 database = Database()
 
+#-----------------------------------------------Events------------------------------------------------------
 @bot.event
 async def on_ready():
     database.update_reaction_roles()
-
+    
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -34,13 +36,10 @@ async def on_message(message):
         if levelup:
             await message.channel.send(f"Congratulations {message.author.mention}! You've leveled up!")
             
-
 @bot.event
 async def on_raw_reaction_add(payload):
-
     if payload.member.bot:
         pass
-
     else:
         data = database.get_reaction_roles()
         for x in data:
@@ -49,7 +48,6 @@ async def on_raw_reaction_add(payload):
                     payload.guild_id).roles, id=x['role_id'])
 
                 await payload.member.add_roles(role)
-
 
 @bot.event
 async def on_raw_reaction_remove(payload):
@@ -60,9 +58,164 @@ async def on_raw_reaction_remove(payload):
                 payload.guild_id).roles, id=x['role_id'])
             await bot.get_guild(payload.guild_id).get_member(payload.user_id).remove_roles(role)
 
-@bot.command(name='ping', guild_ids=[862785948605612052])
-async def global_command(ctx):
-    await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
+@bot.event
+async def on_guild_channel_delete(channel):
+    embed = discord.Embed(title="Channel Deleted", description=f"{channel.name} has been deleted.", color=0xFF0000)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    database.log(f"{channel.name} channel has been created")
+    await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_channel_create(channel):
+    embed = discord.Embed(title="New Channel Created!", description=f"{channel.mention} has been created!", color=0x00ff00)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    database.log(f"{channel.name} channel has been created")
+    await channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_channel_update(before, after):
+    embed = discord.Embed(title="Channel Update",description=f"{after.mention}", color=0x00ff00)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")   
+    if not before.name == after.name:
+        embed.add_field(name="Before (name)", value=before.name)
+        embed.add_field(name="After (name)", value=after.name)
+        database.log(f"{after.name} channel has been updated")    
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    if not before.topic == after.topic:
+        embed.add_field(name="Before (topic)", value=before.topic)
+        embed.add_field(name="After (topic)", value=after.topic) 
+        database.log(f"{after.name} channel has been updated")    
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_guild_role_create(role):
+    embed = discord.Embed(title="New Role Created!", description=f"{role.mention} has been created!", color=0x00ff00)
+    database.log(f"{role.name} role has been created")
+    await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_role_delete(role):
+    embed = discord.Embed(title="Role Deleted", description=f"{role.name} has been deleted.", color=0xFF0000)
+    database.log(f"{role.name} role has been created")
+    await role.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_guild_role_update(before, after):
+    if not before.name == after.name:
+        embed = discord.Embed(title="Role Update", description=f"{after.mention}", color=0x00ff00)
+        embed.add_field(name="Before (name)", value=before.name)
+        embed.add_field(name="After (name)", value=after.name)
+        database.log(f"{after.name} role has been updated")    
+        await after.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+        
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if before.channel == None and after.channel != None:
+        embed = discord.Embed(title="Member Joined Voice Channel", description=f"{member.mention} has joined {after.channel.mention}", color=0x00ff00)
+        await after.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif before.channel != None and after.channel == None:
+        embed = discord.Embed(title="Member Left Voice Channel", description=f"{member.mention} has left {before.channel.mention}", color=0xFF0000)
+        await before.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif before.channel != None and after.channel != None:
+        embed = discord.Embed(title="Member Moved Voice Channel", description=f"{member.mention} has moved from {before.channel.mention} to {after.channel.mention}", color=0x00ff00)
+        await after.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot:
+        return
+    embed = discord.Embed(title="Message Deleted", description=f"{message.author.mention} has deleted a message in channel {message.channel.mention}", color=0xFF0000)
+    embed.add_field(name="Message", value=message.content)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    await message.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_message_edit(before, after):
+    embed = discord.Embed(title="Message Edited", description=f"{after.author.mention} has edited a message in channel {after.channel.mention}", color=0x00ff00)
+    if len(before.content) > 1021:
+        before.content = before.content[:1021]+"..."
+        print(len(before.content))
+    if len(after.content) > 1021:
+        after.content = after.content[:1021]+"..."
+    embed.add_field(name="Before", value=str(before.content))
+    embed.add_field(name="After", value=str(after.content))
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_member_join(member):
+    channel = bot.get_channel(config.WELCOME_CHANNEL)
+    embed = discord.Embed(title=f"Welcome to the server {member}", description="Hope you enjoy your stay!", color=config.EMBED_COLOR_GENERAL)
+    embed.set_thumbnail(url=member.avatar_url)
+    database.log(f"{member.name} has joined the server")
+    message = await channel.send(embed=embed)
+    await message.add_reaction("👋")
+    embed = discord.Embed(title="Member Joined", description=f"{member.mention} has joined the server", color=0x00ff00)
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    
+@bot.event
+async def on_member_remove(member):
+    embed = discord.Embed(title="Member Left", description=f"{member.mention} has left the server", color=0xFF0000)
+    database.log(f"{member.name} has left the server")
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+@bot.event
+async def on_member_update(before, after):
+    if before.nick != after.nick:
+        embed = discord.Embed(title="Nickname Changed", description=f"{after.mention}'s nickname has been updated", color=0x00ff00)
+        embed.add_field(name="Before", value=before.nick)
+        embed.add_field(name="After", value=after.nick)
+        await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+    elif not before.roles == after.roles:
+        embed = discord.Embed(title="Role Changed", description=f"{after.mention}'s roles has been updated", color=0x00ff00)
+        before_roles = ""
+        for i in before.roles:
+            before_roles += f"{i.mention} "
+        after_roles = ""
+        for i in after.roles:
+            after_roles += f"{i.mention} "
+        embed.add_field(name="Before", value=before_roles)
+        embed.add_field(name="After", value=after_roles)
+        await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
+
+async def on_command_error(ctx, error):
+    error = getattr(error, 'original', error)
+    if ctx.command is not None:
+        if ctx.command.has_error_handler():
+                return
+
+    if isinstance(error,commands.MissingRequiredArgument):
+            missing_argument_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_argument_embed.description="Missing arguments"
+            await ctx.send(embed = missing_argument_embed)
+
+    elif isinstance(error,commands.MissingPermissions):
+            missing_permissions_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_permissions_embed.description="You do not have permission to use that command"
+            await ctx.send(embed=missing_permissions_embed)
+
+    elif isinstance(error,commands.NoPrivateMessage):
+            no_dm_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            no_dm_embed.description="Enter a proper argument"
+            await ctx.send(embed=no_dm_embed)
+
+    elif isinstance(error,commands.BadArgument):
+            bad_argument_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            bad_argument_embed.description="Enter a proper argument"
+            await ctx.send(embed=bad_argument_embed)
+
+    
+    elif isinstance(error,commands.MissingRole):
+            missing_role_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_role_embed.description="You do not have permission to use that command"
+            await ctx.send(embed=missing_role_embed)
+
+    elif isinstance(error,commands.CommandNotFound):
+            pass
+    
+    elif isinstance(error,commands.NotOwner):
+            missing_role_embed = discord.Embed(title='Error', colour=config.EMBED_COLOR_RED)
+            missing_role_embed.description="Don't be too smart \nDevs Are smarter than you"
+            await ctx.send(embed=missing_role_embed)
 
 BotCommands = {
     "Fun": 
@@ -116,6 +269,10 @@ BotCommands = {
         }
 }
 
+@bot.command(name='ping', guild_ids=[862785948605612052])
+async def ping(ctx):
+    await ctx.respond(f"Pong! latency: {round(bot.latency*1000)}ms")
+
 @bot.command(guild_ids=[862785948605612052])
 async def help(ctx, category: Option(str, "Choose Category", choices=["Fun", "Economy", "Leveling", "Moderation", "Tags"], required=False, default=None)):
     if category == None:
@@ -137,7 +294,7 @@ async def kick(ctx,
                name: Option(discord.Member, "Name Of the Member"),
                reason: Option(str, "Reason for kick", required=False, default="No Reason Provided")):
     await name.kick(reason=reason)
-    database.log(ctx.author.id, f"Kicked user {name.name} for reason {reason}")  
+    database.log(f"Kicked user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Kicked", description=f"{name.mention} Kicked for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -148,7 +305,7 @@ async def ban(ctx,
               name: Option(discord.Member, "Name Of the Member"),
               reason: Option(str, "Reason for Ban", required=False, default="No Reason Provided")):
     await name.ban(reason=reason)
-    database.log(ctx.author.id, f"Banned user {name.name} for reason {reason}")  
+    database.log(f"Banned user {name.name} for reason {reason}")  
     embed = discord.Embed(
         title="Member Banned", description=f"{name.mention} Banned for reason {reason}", color=discord.Color.red())
     await ctx.send(embed=embed)
@@ -157,7 +314,7 @@ async def ban(ctx,
 @commands.has_permissions(manage_messages=True)
 async def purge(ctx,
                 limit: Option(int, "Amount of messages to purge", required=False, default=2)):
-    database.log(ctx.author.id, f"Purged {limit} messages in channel {ctx.message.channel.name}")  
+    database.log(f"Purged {limit} messages in channel {ctx.message.channel.name}")  
     await ctx.channel.purge(limit=limit)
     
 @bot.command(guild_ids=[862785948605612052])
@@ -178,7 +335,7 @@ async def mute(ctx,
             await user.send(f"You have been muted for {reason} by {ctx.author.name} :skull:")
         except:
             pass
-        database.log(ctx.author.id, f"Muted user {user.name} for reason {reason}")  
+        database.log(f"Muted user {user.name} for reason {reason}")  
         embed = discord.Embed(title="muted", description=f"{user.mention} was muted ", colour=discord.Colour.blue())
         embed.add_field(name="reason:", value=reason, inline=False)
         await user.add_roles(mutedRole, reason=reason)
@@ -195,7 +352,7 @@ async def unmute(ctx,
             await user.send(f" you have been unmuted in: - {ctx.guild.name}")
         except:
             pass
-        database.log(ctx.author.id, f"Unmuted user {user.name}")        
+        database.log(f"Unmuted user {user.name}")        
         embed = discord.Embed(title="unmute", description=f" unmuted-{user.mention}",colour=discord.Colour.blue())
         await ctx.send(embed=embed)
     else:
@@ -513,7 +670,7 @@ async def add_tag(ctx, name:str,*, content: str):
             await ctx.send(f"Tag {name} already exists")
         else:
             database.add_Tag(data)
-            database.log(ctx.author.id, f"Added tag {name}")
+            database.log(f"Added tag {name}")
             await ctx.send(f"Your tag has been created")
             
 @bot.command(guild_ids=[862785948605612052])
@@ -555,7 +712,7 @@ async def logs(ctx):
     embed = discord.Embed(title="Logs", color=discord.Color.blue())
     num = 1
     for i in logs:
-        embed.add_field(name=f"{num}. {i['action']}", value=f"By: `{bot.get_user(int(i['by'])).name}` \nOn: `{i['time']}`", inline=False)
+        embed.add_field(name=f"{num}. {i['action']}", value=f"On: `{i['time']}`", inline=False)
         num += 1
     await ctx.send(embed=embed)
     

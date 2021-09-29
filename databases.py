@@ -237,13 +237,11 @@ class Database:
         return None
 
 #-----------------------------------------------------Logging-----------------------------------------------------------------------------------
-    def log(self, user, action):
+    def log(self, action):
         log = {
             "ID": str(uuid4()),
             "action": action,
-            "by": user,
             "time": datetime.datetime.now().strftime("%d %B %Y, %I:%M:%S %p")
-            
         }
         self.logs.insert_one(log)
         
