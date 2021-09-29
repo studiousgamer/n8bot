@@ -119,7 +119,26 @@ async def on_voice_state_update(member, before, after):
         embed = discord.Embed(title="Member Moved Voice Channel", description=f"{member.mention} has moved from {before.channel.mention} to {after.channel.mention}", color=0x00ff00)
         await after.channel.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot:
+        return
+    embed = discord.Embed(title="Message Deleted", description=f"{message.author.mention} has deleted a message in channel {message.channel.mention}", color=0xFF0000)
+    embed.add_field(name="Message", value=message.content)
+    embed.set_footer(text=f"On: {datetime.datetime.now().strftime('%d %B %Y, %I:%M:%S %p')}")
+    await message.guild.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
+@bot.event
+async def on_message_edit(before, after):
+    embed = discord.Embed(title="Message Edited", description=f"{after.author.mention} has edited a message in channel {after.channel.mention}", color=0x00ff00)
+    if len(before.content) > 1021:
+        before.content = before.content[:1021]+"..."
+        print(len(before.content))
+    if len(after.content) > 1021:
+        after.content = after.content[:1021]+"..."
+    embed.add_field(name="Before", value=str(before.content))
+    embed.add_field(name="After", value=str(after.content))
+    await bot.get_channel(config.LOGGING_CHANNEL).send(embed=embed)
 
 @bot.command(name='ping', guild_ids=[862785948605612052])
 async def global_command(ctx):
